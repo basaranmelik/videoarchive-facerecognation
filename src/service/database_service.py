@@ -4,15 +4,11 @@ from pydantic_settings import BaseSettings
 from typing import List, Dict, Any
 
 class Settings(BaseSettings):
-    db_host: str = "db"
-    db_port: int = 5432
-    db_name: str = "politician_face_db"
-    db_user: str = "postgres"
-    db_password: str = "password123"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    db_host: str
+    db_port: int
+    db_name: str
+    db_user: str
+    db_password: str
 
 class DatabaseService:
     def __init__(self):
@@ -42,7 +38,7 @@ class DatabaseService:
         try:
             with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute(
-                    "SELECT id, ad, soyad, unvan, face_encoding_base64 FROM politicians"
+                    "SELECT id, name, surname, title, face_encoding_base64 FROM face"
                 )
                 results = cursor.fetchall()
                 return results

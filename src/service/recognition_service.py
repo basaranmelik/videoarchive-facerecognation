@@ -9,13 +9,14 @@ from src.service.database_service import DatabaseService
 from src.utils.video_processor import extract_frames
 
 class RecognitionService:
-    def __init__(self, tolerance: float = 0.6):
+    def __init__(self, tolerance: float = 0.5):
         self.db_service = DatabaseService()
         self.tolerance = tolerance
         self.known_face_encodings = []
         self.known_face_metadata = []
 
     def _load_known_faces(self):
+        """Veritabanından bilinen yüzleri yükler ve kodlamaları hazırlar."""
         db_records = self.db_service.get_known_faces()
         for record in db_records:
             try:
@@ -29,16 +30,17 @@ class RecognitionService:
                 if encodings:
                     self.known_face_encodings.append(encodings[0])
                     self.known_face_metadata.append({
-                        "name": f"{record['ad']} {record['soyad']}",
-                        "title": record['unvan']
+                        "name": f"{record['name']} {record['surname']}",
+                        "title": record['title']
                     })
             except Exception:
                 continue
 
     def process_video(self, video_bytes: bytes) -> Dict[str, Any]:
+        """Videodaki yüzleri işler ve bilinen yüzlerle karşılaştırır."""
         self._load_known_faces()
         if not self.known_face_encodings:
-            return {"error": "No valid known faces found in the database."}
+            return {"error": "Veritabanında geçerli bir yüz kaydı bulunamadı."}
         
         frame_generator = extract_frames(video_bytes)
         recognized_people = {}
@@ -62,14 +64,13 @@ class RecognitionService:
                     metadata = self.known_face_metadata[best_match_index]
                     name = metadata["name"]
                     confidence = 1 - face_distances[best_match_index]
-                    
-                    timestamp_seconds = round(frame_number / fps, 2) if fps > 0 else 0
-
-                    if name not in recognized_people or confidence > recognized_people[name]["confidence"]:
-                         recognized_people[name] = {
-                            "title": metadata["title"],
-                            "confidence": round(confidence, 4),
-                            "tespit_edildigi_saniye": timestamp_seconds
-                         }
+                    if confidence >= 0.5:
+                        timestamp_seconds = round(frame_number / fps, 2) if fps > 0 else 0
+                        if name not in recognized_people or confidence > recognized_people[name]["confidence"]:
+                            recognized_people[name] = {
+                                "title": metadata["title"],
+                                "confidence": round(confidence, 4),
+                                "tespit_edildigi_saniye": timestamp_seconds
+                            }
         
         return recognized_people
